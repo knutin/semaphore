@@ -17,6 +17,9 @@ acquire(Name, Max) ->
         [Max, Max] ->
             {error, max_reached};
 
+        [_Count, OldMax] when OldMax =< Max ->
+            ok;
+
         [_Count, Max] ->
             ok
     end.
@@ -52,7 +55,8 @@ semaphore_test_() ->
     {setup, fun setup/0, fun teardown/1,
      [
       ?_test(api()),
-      ?_test(release())
+      ?_test(release()),
+      ?_test(increase_max())
      ]}.
 
 
@@ -86,4 +90,8 @@ release() ->
     ?assertEqual({error, max_reached}, acquire(foo, 1)),
     ?assertEqual(1, count(foo)).
 
-    
+increase_max() ->
+    reset(foo),
+    ?assertEqual(ok, acquire(foo, 1)),
+    ?assertEqual(ok, acquire(foo, 3)),
+    ?assertEqual(ok, acquire(foo, 3)).
