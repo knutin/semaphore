@@ -4,7 +4,7 @@
 -include("semaphore.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--export([acquire/2, release/1]).
+-export([acquire/2, acquire_block/3, release/1]).
 -export([count/1, reset/1, reset/2]).
 
 acquire(Name, Max) ->
@@ -23,6 +23,25 @@ acquire(Name, Max) ->
         [_Count, Max] ->
             ok
     end.
+
+acquire_block(Name, Max, Timeout) ->
+    acquire_block(Name, Max, Timeout, os:timestamp()).
+
+
+acquire_block(Name, Max, Timeout, Start) ->
+    case acquire(Name, Max) of
+        ok ->
+            ok;
+        {error, max_reached} ->
+            case timer:now_diff(os:timestamp(), Start) / 1000 > Timeout of
+                true ->
+                    {error, timeout};
+                false ->
+                    timer:sleep(100),
+                    acquire_block(Name, Max, Timeout, Start)
+            end
+    end.
+
 
 release(Name) ->
     case catch ets:update_counter(?TABLE, Name, {2, -1, 0, 0}) of
@@ -56,7 +75,8 @@ semaphore_test_() ->
      [
       ?_test(api()),
       ?_test(release()),
-      ?_test(increase_max())
+      ?_test(increase_max()),
+      ?_test(block())
      ]}.
 
 
@@ -95,3 +115,17 @@ increase_max() ->
     ?assertEqual(ok, acquire(foo, 1)),
     ?assertEqual(ok, acquire(foo, 3)),
     ?assertEqual(ok, acquire(foo, 3)).
+
+block() ->
+    reset(foo),
+    ?assertEqual(ok, acquire(foo, 1)),
+
+    Parent = self(),
+    _Pid = spawn(fun() ->
+                        Parent ! acquire_block(foo, 1, 1000)
+                end),
+    timer:sleep(100),
+    ?assertEqual(ok, release(foo)),
+    receive M1 -> ?assertEqual(M1, ok) end.
+            
+
