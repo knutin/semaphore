@@ -7,7 +7,7 @@
 -export([acquire/2, acquire_block/3, release/1]).
 -export([count/1, reset/1, reset/2]).
 
-acquire(Name, Max) ->
+acquire(Name, Max) when is_integer(Max) ->
     case catch ets:update_counter(?TABLE, Name,
                                   [{2, 0}, {2, 1, Max, Max}]) of
         {'EXIT', {badarg, _}} ->
@@ -28,7 +28,7 @@ acquire(Name, Max) ->
             ok
     end.
 
-acquire_block(Name, Max, Timeout) ->
+acquire_block(Name, Max, Timeout) when is_integer(Max) ->
     acquire_block(Name, Max, Timeout, os:timestamp()).
 
 
