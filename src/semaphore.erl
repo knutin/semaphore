@@ -11,8 +11,12 @@ acquire(Name, Max) ->
     case catch ets:update_counter(?TABLE, Name,
                                   [{2, 0}, {2, 1, Max, Max}]) of
         {'EXIT', {badarg, _}} ->
-            true = ets:insert_new(?TABLE, {Name, 1}),
-            ok;
+            case ets:insert_new(?TABLE, {Name, 1}) of
+                true ->
+                    ok;
+                false ->
+                    acquire(Name, Max)
+            end;
 
         [Max, Max] ->
             {error, max_reached};
